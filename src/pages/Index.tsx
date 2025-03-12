@@ -128,7 +128,7 @@ const Index = () => {
             />
             <HealthMetricCard
               title="Water"
-              value={healthData.water.toFixed(1)}
+              value={Number(healthData.water.toFixed(1))}
               unit="L"
               target={2.5}
               progress={Math.min(100, Math.round((healthData.water / 2.5) * 100))}
