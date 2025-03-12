@@ -20,8 +20,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("AuthProvider: initializing");
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("AuthProvider: initial session", session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -29,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("AuthProvider: auth state change", _event, session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -39,12 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log("AuthProvider: signing out");
       await supabase.auth.signOut();
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
       });
     } catch (error) {
+      console.error("AuthProvider: error signing out", error);
       toast({
         title: "Error signing out",
         description: "Something went wrong. Please try again.",

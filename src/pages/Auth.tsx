@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +57,7 @@ const Auth = () => {
         navigate("/");
       }
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign up. Please try again.",
@@ -82,16 +82,27 @@ const Auth = () => {
     
     try {
       setLoading(true);
+      console.log("Attempting login with:", { email });
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
+      
+      console.log("Login successful:", data);
+      toast({
+        title: "Login successful",
+        description: "You have been signed in.",
+      });
       
       navigate("/");
     } catch (error: any) {
+      console.error("Login error details:", error);
       toast({
         title: "Login failed",
         description: error.message || "Invalid email or password.",
