@@ -9,7 +9,130 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      activities: {
+        Row: {
+          completed: boolean | null
+          created_at: string
+          description: string | null
+          duration: string | null
+          id: string
+          time: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          time?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          time?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      health_metrics: {
+        Row: {
+          calories_burned: number | null
+          heart_rate: number | null
+          id: string
+          recorded_at: string
+          sleep: number | null
+          steps: number | null
+          user_id: string
+          water: number | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          heart_rate?: number | null
+          id?: string
+          recorded_at?: string
+          sleep?: number | null
+          steps?: number | null
+          user_id: string
+          water?: number | null
+        }
+        Update: {
+          calories_burned?: number | null
+          heart_rate?: number | null
+          id?: string
+          recorded_at?: string
+          sleep?: number | null
+          steps?: number | null
+          user_id?: string
+          water?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "health_metrics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          avatar_url: string | null
+          blood_type: string | null
+          created_at: string
+          first_name: string | null
+          height: number | null
+          id: string
+          last_name: string | null
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          age?: number | null
+          avatar_url?: string | null
+          blood_type?: string | null
+          created_at?: string
+          first_name?: string | null
+          height?: number | null
+          id: string
+          last_name?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          age?: number | null
+          avatar_url?: string | null
+          blood_type?: string | null
+          created_at?: string
+          first_name?: string | null
+          height?: number | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
