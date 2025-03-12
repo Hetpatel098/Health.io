@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -265,11 +266,14 @@ const updateHealthMetrics = async (data: HealthData) => {
 // Simulate real-time data updates
 export const startHealthDataSimulation = async () => {
   const store = useHealthStore.getState();
-  const { data: sessionData } = await supabase.auth.getSession();
+  
+  // Get the session and check if user is logged in
+  const sessionResponse = await supabase.auth.getSession();
+  const session = sessionResponse.data.session;
   
   // If user is logged in, fetch their data first
-  if (sessionData?.session?.user) {
-    store.fetchUserData(sessionData.session.user.id);
+  if (session?.user) {
+    await store.fetchUserData(session.user.id);
   }
 
   // Update heart rate every 3 seconds within a realistic range
