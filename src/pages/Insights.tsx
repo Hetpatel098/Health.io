@@ -16,37 +16,90 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useHealthStore } from "@/services/healthDataService";
+import { useEffect, useState } from "react";
 
-const sleepData = [
-  { day: "Mon", hours: 7.5 },
-  { day: "Tue", hours: 6.8 },
-  { day: "Wed", hours: 8.2 },
-  { day: "Thu", hours: 7.0 },
-  { day: "Fri", hours: 6.5 },
-  { day: "Sat", hours: 8.0 },
-  { day: "Sun", hours: 7.8 },
-];
+// Generate realistic sleep data based on current value
+const generateSleepData = (currentHours: number) => {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  return days.map(day => {
+    // Vary around the current hours with some randomness
+    const variation = Math.random() * 2 - 1; // -1 to +1
+    const hours = Math.max(5, Math.min(10, currentHours + variation));
+    return { day, hours: Number(hours.toFixed(1)) };
+  });
+};
 
-const heartRateData = [
-  { time: "6am", rate: 68 },
-  { time: "9am", rate: 72 },
-  { time: "12pm", rate: 80 },
-  { time: "3pm", rate: 76 },
-  { time: "6pm", rate: 82 },
-  { time: "9pm", rate: 70 },
-];
+// Generate heart rate data throughout the day
+const generateHeartRateData = (currentRate: number) => {
+  const times = ["6am", "9am", "12pm", "3pm", "6pm", "9pm"];
+  return times.map(time => {
+    // Create a realistic pattern with morning lows and afternoon peaks
+    let baseRate;
+    if (time === "6am" || time === "9pm") {
+      baseRate = currentRate - 10; // Lower at rest
+    } else if (time === "12pm" || time === "6pm") {
+      baseRate = currentRate + 10; // Higher during activity
+    } else {
+      baseRate = currentRate;
+    }
+    
+    const variation = Math.floor(Math.random() * 5) - 2; // -2 to +2
+    return { time, rate: Math.max(60, Math.min(100, baseRate + variation)) };
+  });
+};
 
-const exerciseData = [
-  { day: "Mon", minutes: 45 },
-  { day: "Tue", minutes: 30 },
-  { day: "Wed", minutes: 0 },
-  { day: "Thu", minutes: 60 },
-  { day: "Fri", minutes: 45 },
-  { day: "Sat", minutes: 90 },
-  { day: "Sun", minutes: 30 },
-];
+// Generate exercise data for the week
+const generateExerciseData = (stepsToday: number) => {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const today = new Date().getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const todayIndex = today === 0 ? 6 : today - 1; // Convert to array index
+  
+  // Convert steps to approximate exercise minutes
+  const minutesToday = Math.round(stepsToday / 100);
+  
+  return days.map((day, index) => {
+    if (index === todayIndex) {
+      // Today's actual value based on steps
+      return { day, minutes: minutesToday };
+    } else if (index > todayIndex) {
+      // Future days - no data yet
+      return { day, minutes: 0 };
+    } else {
+      // Past days - generate random realistic data
+      const value = Math.floor(Math.random() * 60) + 30; // 30-90 minutes
+      return { day, minutes: value };
+    }
+  });
+};
 
 const Insights = () => {
+  const healthData = useHealthStore((state) => state.data);
+  
+  // Generate derived data for charts based on real-time values
+  const [sleepData, setSleepData] = useState(() => generateSleepData(healthData.sleep));
+  const [heartRateData, setHeartRateData] = useState(() => generateHeartRateData(healthData.heartRate));
+  const [exerciseData, setExerciseData] = useState(() => generateExerciseData(healthData.steps));
+  
+  // Update chart data when health data changes
+  useEffect(() => {
+    setSleepData(generateSleepData(healthData.sleep));
+    setHeartRateData(generateHeartRateData(healthData.heartRate));
+    setExerciseData(generateExerciseData(healthData.steps));
+  }, [healthData.heartRate, healthData.sleep, healthData.steps]);
+  
+  // Calculate overall health score based on multiple metrics
+  const calculateHealthScore = () => {
+    const sleepScore = Math.min(100, (healthData.sleep / 8) * 100);
+    const stepsScore = Math.min(100, (healthData.steps / 10000) * 100);
+    const waterScore = Math.min(100, (healthData.water / 2.5) * 100);
+    
+    // Weight the factors
+    return Math.round((sleepScore * 0.3) + (stepsScore * 0.4) + (waterScore * 0.3));
+  };
+  
+  const healthScore = calculateHealthScore();
+  
   return (
     <div className="min-h-screen bg-background pb-20">
       <Header title="Insights" />
@@ -65,7 +118,7 @@ const Insights = () => {
             
             <div className="my-5">
               <ProgressCircle 
-                value={82} 
+                value={healthScore} 
                 size={150}
                 strokeWidth={10}
                 color="stroke-health-green"
@@ -73,8 +126,14 @@ const Insights = () => {
                 animate={true}
               >
                 <div className="flex flex-col items-center">
-                  <span className="text-4xl font-semibold">82</span>
-                  <span className="text-sm text-muted-foreground">Great</span>
+                  <span className="text-4xl font-semibold">{healthScore}</span>
+                  <span className="text-sm text-muted-foreground">{
+                    healthScore >= 90 ? 'Excellent' :
+                    healthScore >= 80 ? 'Great' :
+                    healthScore >= 70 ? 'Good' :
+                    healthScore >= 60 ? 'Fair' :
+                    'Needs Improvement'
+                  }</span>
                 </div>
               </ProgressCircle>
             </div>
@@ -82,15 +141,15 @@ const Insights = () => {
             <div className="grid grid-cols-3 w-full gap-3 mt-3">
               <div className="flex flex-col items-center bg-health-softBlue rounded-lg p-2">
                 <span className="text-sm font-medium">Sleep</span>
-                <span className="text-xl font-medium text-health-blue">85%</span>
+                <span className="text-xl font-medium text-health-blue">{Math.round((healthData.sleep / 8) * 100)}%</span>
               </div>
               <div className="flex flex-col items-center bg-health-softGreen rounded-lg p-2">
                 <span className="text-sm font-medium">Activity</span>
-                <span className="text-xl font-medium text-health-green">79%</span>
+                <span className="text-xl font-medium text-health-green">{Math.min(99, Math.round((healthData.steps / 10000) * 100))}%</span>
               </div>
               <div className="flex flex-col items-center bg-health-softPurple rounded-lg p-2">
                 <span className="text-sm font-medium">Nutrition</span>
-                <span className="text-xl font-medium text-health-purple">83%</span>
+                <span className="text-xl font-medium text-health-purple">{Math.round((healthData.water / 2.5) * 100)}%</span>
               </div>
             </div>
           </div>
@@ -143,7 +202,11 @@ const Insights = () => {
                 <div className="mt-4 bg-health-softPurple rounded-lg p-3">
                   <h4 className="text-sm font-medium">Insight</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Your sleep has been consistent this week. Try going to bed 30 minutes earlier to reach your optimal sleep goal.
+                    {healthData.sleep >= 8 
+                      ? "Your sleep has been excellent. Keep maintaining this healthy sleep pattern."
+                      : healthData.sleep >= 7
+                      ? "Your sleep has been good. Try going to bed 30 minutes earlier to reach your optimal sleep goal."
+                      : "Your sleep has been below target. Aim for 8 hours of sleep for optimal health and recovery."}
                   </p>
                 </div>
               </motion.div>
@@ -194,7 +257,11 @@ const Insights = () => {
                 <div className="mt-4 bg-health-softBlue rounded-lg p-3">
                   <h4 className="text-sm font-medium">Insight</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Your heart rate peaked around noon and 6pm, which correlates with physical activity. Overall, your heart rate is within a healthy range.
+                    {healthData.heartRate > 80 
+                      ? "Your heart rate is slightly elevated. Consider taking a moment to practice deep breathing."
+                      : healthData.heartRate < 65
+                      ? "Your resting heart rate is excellent, indicating good cardiovascular fitness."
+                      : "Your heart rate is within a healthy range. It follows the normal pattern of being lower in the morning and evening."}
                   </p>
                 </div>
               </motion.div>
@@ -238,7 +305,11 @@ const Insights = () => {
                 <div className="mt-4 bg-health-softGreen rounded-lg p-3">
                   <h4 className="text-sm font-medium">Insight</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    You've exercised for 300 minutes this week, which is excellent! Try to maintain consistency by adding a short workout on Wednesday.
+                    {exerciseData.reduce((acc, curr) => acc + curr.minutes, 0) >= 150
+                      ? "You've exceeded the recommended 150 minutes of moderate exercise per week. Excellent work!"
+                      : healthData.steps >= 8000
+                      ? "You're making good progress with your daily steps. Try to include more structured exercise for even better results."
+                      : "Adding just 30 minutes of moderate exercise most days of the week can significantly improve your health metrics."}
                   </p>
                 </div>
               </motion.div>

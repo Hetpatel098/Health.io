@@ -3,12 +3,15 @@ import { ChevronLeft } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { RealTimeIndicator } from "./RealTimeIndicator";
+import { useHealthStore } from "@/services/healthDataService";
 
 interface HeaderProps {
   title?: string;
   showBackButton?: boolean;
   rightElement?: React.ReactNode;
   className?: string;
+  showRealTimeIndicator?: boolean;
 }
 
 export const Header = ({
@@ -16,9 +19,11 @@ export const Header = ({
   showBackButton = false,
   rightElement,
   className,
+  showRealTimeIndicator = true,
 }: HeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const lastUpdated = useHealthStore((state) => state.data.lastUpdated);
   
   // Only show title if provided or if we're not on the home page
   const showTitle = title || location.pathname !== "/";
@@ -55,9 +60,12 @@ export const Header = ({
         )}
       </div>
       
-      {rightElement && (
-        <div className="flex items-center">{rightElement}</div>
-      )}
+      <div className="flex items-center space-x-2">
+        {showRealTimeIndicator && <RealTimeIndicator lastUpdated={lastUpdated} />}
+        {rightElement && (
+          <div className="flex items-center">{rightElement}</div>
+        )}
+      </div>
     </motion.header>
   );
 };
