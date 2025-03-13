@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { ProgressCircle } from "./ProgressCircle";
 import { motion } from "framer-motion";
 
-type HealthMetricVariant = "primary" | "success" | "info" | "purple";
+type HealthMetricVariant = "primary" | "success" | "info" | "purple" | "warning" | "danger";
 
 const variantStyles = {
   primary: {
@@ -34,6 +34,20 @@ const variantStyles = {
     progressBg: "stroke-purple-100",
     iconBg: "bg-purple-50",
   },
+  warning: {
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    progress: "stroke-amber-500",
+    progressBg: "stroke-amber-100",
+    iconBg: "bg-amber-50",
+  },
+  danger: {
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    progress: "stroke-rose-500",
+    progressBg: "stroke-rose-100",
+    iconBg: "bg-rose-50",
+  },
 };
 
 interface HealthMetricCardProps {
@@ -46,6 +60,8 @@ interface HealthMetricCardProps {
   variant?: HealthMetricVariant;
   description?: string;
   className?: string;
+  lastSync?: string;
+  sourceDevice?: string;
 }
 
 export const HealthMetricCard = ({ 
@@ -57,7 +73,9 @@ export const HealthMetricCard = ({
   icon,
   variant = "primary",
   description,
-  className 
+  className,
+  lastSync,
+  sourceDevice
 }: HealthMetricCardProps) => {
   const styles = variantStyles[variant];
   
@@ -88,6 +106,20 @@ export const HealthMetricCard = ({
             <p className="text-xs text-muted-foreground mt-2">
               {description}
             </p>
+          )}
+          {sourceDevice && (
+            <div className="flex items-center mt-2">
+              <span className="text-xs text-muted-foreground">
+                Source: {sourceDevice}
+              </span>
+            </div>
+          )}
+          {lastSync && (
+            <div className="flex items-center mt-1">
+              <span className="text-xs text-muted-foreground">
+                Last sync: {lastSync}
+              </span>
+            </div>
           )}
         </div>
         
