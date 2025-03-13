@@ -8,7 +8,8 @@ import {
   syncDeviceData, 
   DeviceProvider, 
   pairAndroidDevice,
-  setupRealtimeSync
+  setupRealtimeSync,
+  generateConnectQRCode
 } from '@/services/deviceIntegrationService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +22,9 @@ import {
   RefreshCwIcon,
   SmartphoneIcon,
   WifiIcon,
-  BellIcon
+  BellIcon,
+  InfoIcon,
+  QrCodeIcon
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,10 +35,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
-import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ConnectedDevice {
   provider: DeviceProvider;
@@ -43,6 +49,7 @@ interface ConnectedDevice {
   lastSynced: string;
   connected: boolean;
   deviceId?: string;
+  deviceName?: string;
   realtime?: boolean;
 }
 
@@ -57,6 +64,8 @@ export const DeviceConnection = () => {
   const [isSyncing, setSyncing] = useState<DeviceProvider | null>(null);
   const [androidPairOpen, setAndroidPairOpen] = useState(false);
   const [realtimeDevices, setRealtimeDevices] = useState<string[]>([]);
+  const [connectionCode, setConnectionCode] = useState('');
+  const [activeTab, setActiveTab] = useState('manual');
   const realtimeUnsubscribe = useRef<(() => void) | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -97,11 +106,12 @@ export const DeviceConnection = () => {
       
       const devices: ConnectedDevice[] = data.map(device => ({
         provider: device.provider as DeviceProvider,
-        name: getDeviceName(device.provider),
+        name: device.device_name || getDeviceName(device.provider),
         lastSynced: new Date(device.last_synced).toLocaleString(),
         connected: true,
-        deviceId: device.provider === 'android' ? device.access_token.split('_')[1] : undefined,
-        realtime: realtimeDevices.includes(device.provider === 'android' && device.access_token.split('_')[1] || '')
+        deviceId: device.device_id || (device.provider === 'android' ? device.access_token.split('_')[1] : undefined),
+        deviceName: device.device_name || undefined,
+        realtime: realtimeDevices.includes(device.device_id || '')
       }));
       
       setConnectedDevices(devices);
@@ -134,6 +144,12 @@ export const DeviceConnection = () => {
       // For Android, we'll open the pairing dialog instead
       if (provider === 'android') {
         setAndroidPairOpen(true);
+        
+        // Generate a unique code for connection
+        if (user) {
+          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          setConnectionCode(code);
+        }
         return;
       }
       
@@ -155,12 +171,12 @@ export const DeviceConnection = () => {
     if (!user) return;
     
     try {
-      const result = await pairAndroidDevice(user.id, data.deviceId);
+      const result = await pairAndroidDevice(user.id, data.deviceId, data.deviceName);
       
       if (result.success) {
         toast({
           title: 'Device Paired',
-          description: `Successfully paired Android device (${data.deviceId})`,
+          description: `Successfully paired Android device (${data.deviceName})`,
         });
         
         setAndroidPairOpen(false);
@@ -372,53 +388,107 @@ export const DeviceConnection = () => {
       
       {/* Android Device Pairing Dialog */}
       <Dialog open={androidPairOpen} onOpenChange={setAndroidPairOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Pair Android Device</DialogTitle>
+            <DialogTitle>Connect Android Device</DialogTitle>
             <DialogDescription>
-              Enter your Android device details to establish a connection.
+              Connect your Android device to sync health and fitness data.
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleAndroidPair)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="deviceId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Device ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter device ID" required {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="deviceName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Device Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="My Android Device" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setAndroidPairOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  <SmartphoneIcon className="w-4 h-4 mr-2" />
-                  Pair Device
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <Tabs defaultValue="manual" className="w-full mt-4" onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual">Manual Setup</TabsTrigger>
+              <TabsTrigger value="app">Connect with App</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="manual" className="mt-4">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleAndroidPair)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="deviceId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Device ID</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter device ID" required {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          You can find your Device ID in your Android phone's Settings > About Phone > Status.
+                        </FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="deviceName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Device Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="My Android Device" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <DialogFooter className="mt-6">
+                    <Button type="button" variant="outline" onClick={() => setAndroidPairOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      <SmartphoneIcon className="w-4 h-4 mr-2" />
+                      Pair Device
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="app" className="mt-4">
+              <div className="space-y-4">
+                <Alert>
+                  <InfoIcon className="h-4 w-4" />
+                  <AlertTitle>Easy connection with Health Sync app</AlertTitle>
+                  <AlertDescription>
+                    Download the Health Sync app on your Android device and use the connection code below to pair.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="flex flex-col items-center justify-center py-6 border rounded-md bg-muted/20">
+                  <QrCodeIcon className="w-32 h-32 mb-4 text-primary" />
+                  <p className="text-sm text-muted-foreground">Scan this QR code with the Health Sync app</p>
+                </div>
+                
+                <div className="border rounded-md p-4 text-center bg-primary/5">
+                  <p className="text-sm text-muted-foreground mb-1">Or enter this code in the app:</p>
+                  <p className="text-2xl font-bold tracking-widest">{connectionCode || '------'}</p>
+                </div>
+                
+                <div className="mt-6 text-center">
+                  <Button 
+                    type="button" 
+                    variant="default"
+                    onClick={() => {
+                      if (user) {
+                        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+                        setConnectionCode(newCode);
+                        toast({
+                          title: "New Code Generated",
+                          description: "Use this code in the Health Sync app to connect your device."
+                        });
+                      }
+                    }}
+                  >
+                    <RefreshCwIcon className="w-4 h-4 mr-2" />
+                    Generate New Code
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>

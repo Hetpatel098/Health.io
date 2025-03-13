@@ -14,11 +14,13 @@ const providerConfig: Record<DeviceProvider, ProviderConfig> = {
     scopes: ['activity', 'heartrate', 'sleep', 'weight'],
     authUrl: 'https://www.fitbit.com/oauth2/authorize',
     tokenUrl: 'https://api.fitbit.com/oauth2/token',
+    connectType: 'oauth'
   },
   apple_health: {
     name: 'Apple Health',
     icon: 'apple-health.svg',
     color: '#FF2D55',
+    connectType: 'oauth'
   },
   google_fit: {
     name: 'Google Fit',
@@ -27,11 +29,13 @@ const providerConfig: Record<DeviceProvider, ProviderConfig> = {
     scopes: ['https://www.googleapis.com/auth/fitness.activity.read', 'https://www.googleapis.com/auth/fitness.heart_rate.read'],
     authUrl: 'https://accounts.google.com/o/oauth2/auth',
     tokenUrl: 'https://oauth2.googleapis.com/token',
+    connectType: 'oauth'
   },
   garmin: {
     name: 'Garmin',
     icon: 'garmin.svg',
     color: '#007CC3',
+    connectType: 'oauth'
   },
   withings: {
     name: 'Withings',
@@ -40,14 +44,15 @@ const providerConfig: Record<DeviceProvider, ProviderConfig> = {
     scopes: ['user.metrics', 'user.activity'],
     authUrl: 'https://account.withings.com/oauth2_user/authorize2',
     tokenUrl: 'https://wbsapi.withings.net/v2/oauth2',
+    connectType: 'oauth'
   },
   android: {
     name: 'Android Device',
     icon: 'android.svg',
     color: '#3DDC84',
+    connectType: 'direct',
+    instructions: 'Enter your Android device ID to connect. You can find your device ID in Settings > About Phone > Status > IMEI or in the HealthSync app.',
     scopes: ['activity', 'heartrate', 'sleep', 'weight', 'location'],
-    authUrl: 'https://android-auth-endpoint.example.com/auth',
-    tokenUrl: 'https://android-auth-endpoint.example.com/token',
   },
 };
 
@@ -59,6 +64,12 @@ const generateRandomState = () => {
 
 export const connectDevice = async (provider: DeviceProvider, clientId: string, redirectUri: string) => {
   const config = providerConfig[provider];
+  
+  // For Android, we don't need to redirect to OAuth
+  if (provider === 'android') {
+    return { androidPairing: true };
+  }
+  
   if (!config?.authUrl) {
     throw new Error(`Provider ${provider} does not support OAuth authentication`);
   }
@@ -78,27 +89,6 @@ export const connectDevice = async (provider: DeviceProvider, clientId: string, 
   });
 
   window.location.href = `${config.authUrl}?${params.toString()}`;
-
-  // Add special handling for Android direct connection
-  if (provider === 'android') {
-    try {
-      // For Android we'll use a different connection approach
-      // This would normally call a native Android intent through a deep link
-      const androidConnectUrl = `intent://connect?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}#Intent;scheme=healthapp;package=com.example.healthapp;end`;
-      
-      // Check if we're on Android before trying to open the app
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      if (isAndroid) {
-        window.location.href = androidConnectUrl;
-      } else {
-        alert('Please open this app on your Android device to connect.');
-      }
-      return;
-    } catch (error) {
-      console.error('Error connecting to Android device:', error);
-      throw error;
-    }
-  }
 };
 
 // Handle OAuth redirect and token exchange
@@ -231,22 +221,26 @@ export const syncDeviceData = async (provider: DeviceProvider, userId: string) =
   }
 };
 
-export const pairAndroidDevice = async (userId: string, deviceId: string) => {
+export const pairAndroidDevice = async (userId: string, deviceId: string, deviceName: string = 'My Android Device') => {
   try {
+    console.log(`Pairing Android device: ${deviceId} (${deviceName})`);
+    
     // In a real app, this would verify the device and establish a secure connection
     // For demo purposes, we're creating a simulated token
     const mockToken = `android_${deviceId}_${Date.now()}`;
     
-    // Store the connection details
+    // Store the connection details with additional device info
     await storeDeviceToken(
       userId,
       'android',
       mockToken,
       null, // No refresh token for direct connection
-      Date.now() + (365 * 24 * 60 * 60 * 1000) // Valid for 1 year
+      Date.now() + (365 * 24 * 60 * 60 * 1000), // Valid for 1 year
+      deviceName,
+      deviceId
     );
     
-    return { success: true, deviceId };
+    return { success: true, deviceId, deviceName };
   } catch (error) {
     console.error('Error pairing Android device:', error);
     return { success: false, error };
@@ -272,4 +266,11 @@ export const setupRealtimeSync = (userId: string, deviceId: string, onDataReceiv
   return () => {
     supabase.removeChannel(channel);
   };
+};
+
+// Add this new function to generate a QR code for easier connection
+export const generateConnectQRCode = (userId: string, deviceId: string) => {
+  // This would typically generate a QR code containing connection info
+  // For this demo, we'll just return a mock URL that would be encoded in a QR
+  return `healthapp://connect?user=${userId}&device=${deviceId}&timestamp=${Date.now()}`;
 };

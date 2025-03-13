@@ -9,6 +9,8 @@ export interface DeviceConnection {
   refresh_token?: string | null;
   expires_at?: string | null;
   last_synced: string;
+  device_name?: string; // Added for better device identification
+  device_id?: string;   // Added for Android devices
 }
 
 export interface ProviderConfig {
@@ -18,4 +20,6 @@ export interface ProviderConfig {
   scopes?: string[];
   authUrl?: string;
   tokenUrl?: string;
+  connectType?: 'oauth' | 'direct'; // Added to differentiate connection methods
+  instructions?: string; // Added to provide user instructions
 }

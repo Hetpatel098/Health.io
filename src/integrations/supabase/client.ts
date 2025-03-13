@@ -13,7 +13,15 @@ export const checkAuthStatus = async () => {
   return { data, error };
 };
 
-export const storeDeviceToken = async (userId: string, provider: string, token: string, refreshToken?: string, expiresAt?: number) => {
+export const storeDeviceToken = async (
+  userId: string, 
+  provider: string, 
+  token: string, 
+  refreshToken?: string | null, 
+  expiresAt?: number,
+  deviceName?: string,
+  deviceId?: string
+) => {
   try {
     const { error } = await supabase
       .from('device_connections')
@@ -23,7 +31,9 @@ export const storeDeviceToken = async (userId: string, provider: string, token: 
         access_token: token,
         refresh_token: refreshToken || null,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-        last_synced: new Date().toISOString()
+        last_synced: new Date().toISOString(),
+        device_name: deviceName || null,
+        device_id: deviceId || null
       });
     
     if (error) throw error;
