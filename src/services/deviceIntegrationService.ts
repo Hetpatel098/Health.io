@@ -1,11 +1,9 @@
 import { supabase, storeDeviceToken, getDeviceToken, updateLastSynced } from '@/integrations/supabase/client';
 import { useHealthStore } from './healthDataService';
-
-// Supported device types
-export type DeviceProvider = 'fitbit' | 'apple_health' | 'google_fit' | 'garmin' | 'withings';
+import type { DeviceProvider, ProviderConfig } from '@/types/device';
 
 // Configuration for OAuth providers
-const providerConfig = {
+const providerConfig: Record<DeviceProvider, ProviderConfig> = {
   fitbit: {
     name: 'Fitbit',
     icon: 'fitbit.svg',
@@ -42,21 +40,24 @@ const providerConfig = {
   }
 };
 
-// Function to initiate OAuth flow for a device
+// Helper function to generate a random state for OAuth
+const generateRandomState = () => {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+};
+
 export const connectDevice = async (provider: DeviceProvider, clientId: string, redirectUri: string) => {
   const config = providerConfig[provider];
-  if (!config || !config.authUrl) {
-    throw new Error(`Unsupported provider: ${provider}`);
+  if (!config?.authUrl) {
+    throw new Error(`Provider ${provider} does not support OAuth authentication`);
   }
 
   const scopes = config.scopes?.join(' ') || '';
   const state = generateRandomState();
   
-  // Store state in localStorage for verification when the user returns
   localStorage.setItem('deviceConnectState', state);
   localStorage.setItem('deviceConnectProvider', provider);
 
-  // Build authorization URL
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -65,7 +66,6 @@ export const connectDevice = async (provider: DeviceProvider, clientId: string, 
     state,
   });
 
-  // Redirect to provider authorization page
   window.location.href = `${config.authUrl}?${params.toString()}`;
 };
 
@@ -122,10 +122,8 @@ export const handleDeviceRedirect = async (
   return { success: true, provider };
 };
 
-// Function to sync data from connected devices
 export const syncDeviceData = async (provider: DeviceProvider, userId: string) => {
   try {
-    // Get stored token
     const tokenData = await getDeviceToken(userId, provider);
     if (!tokenData) {
       console.error(`No token found for provider ${provider}`);
@@ -134,16 +132,14 @@ export const syncDeviceData = async (provider: DeviceProvider, userId: string) =
 
     console.log(`Syncing data from ${provider}...`);
     
-    // In a real implementation, you would make API calls to the provider
-    // For this demo, we'll simulate data from different providers
-    let healthData = {};
+    let healthData: Record<string, number> = {};
     
     switch (provider) {
       case 'fitbit':
         healthData = {
           steps: Math.floor(Math.random() * 5000) + 3000,
           heartRate: Math.floor(Math.random() * 20) + 60,
-          sleep: (Math.random() * 2 + 6).toFixed(1),
+          sleep: Math.floor(Math.random() * 2) + 6,
           caloriesBurned: Math.floor(Math.random() * 300) + 200
         };
         break;
@@ -152,7 +148,7 @@ export const syncDeviceData = async (provider: DeviceProvider, userId: string) =
         healthData = {
           bloodPressureSystolic: Math.floor(Math.random() * 20) + 110,
           bloodPressureDiastolic: Math.floor(Math.random() * 15) + 70,
-          weight: (Math.random() * 10 + 65).toFixed(1)
+          weight: Math.floor(Math.random() * 10) + 65
         };
         break;
         
@@ -168,25 +164,21 @@ export const syncDeviceData = async (provider: DeviceProvider, userId: string) =
         healthData = {};
     }
     
-    // Update health data store with the new data
+    // Update health data store
     const store = useHealthStore.getState();
-    if (healthData) {
-      if ('steps' in healthData) {
-        store.updateSteps(healthData.steps);
-      }
-      if ('heartRate' in healthData) {
-        store.updateHeartRate(healthData.heartRate);
-      }
-      if ('sleep' in healthData) {
-        store.updateSleep(parseFloat(healthData.sleep));
-      }
-      if ('caloriesBurned' in healthData) {
-        store.updateCaloriesBurned(healthData.caloriesBurned);
-      }
-      // Additional health metrics would be handled similarly
+    if (healthData.steps) {
+      store.incrementSteps(healthData.steps);
+    }
+    if (healthData.heartRate) {
+      store.updateHeartRate(healthData.heartRate);
+    }
+    if (healthData.sleep) {
+      store.updateSleep(healthData.sleep);
+    }
+    if (healthData.caloriesBurned) {
+      store.updateCaloriesBurned(healthData.caloriesBurned);
     }
     
-    // Update last synced timestamp
     await updateLastSynced(userId, provider);
     
     return { success: true, data: healthData };
@@ -194,10 +186,4 @@ export const syncDeviceData = async (provider: DeviceProvider, userId: string) =
     console.error(`Error syncing data from ${provider}:`, error);
     return { success: false, error };
   }
-};
-
-// Helper function to generate a random state for OAuth
-const generateRandomState = () => {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15);
 };

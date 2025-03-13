@@ -1,22 +1,17 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  connectDevice, 
-  syncDeviceData, 
-  DeviceProvider 
-} from '@/services/deviceIntegrationService';
+import { connectDevice, syncDeviceData, DeviceProvider } from '@/services/deviceIntegrationService';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { DeviceConnection as DeviceConnectionType } from '@/types/device';
 import { 
   ActivityIcon,
   HeartIcon,
   WatchIcon,
   DropletIcon,
   RefreshCwIcon,
-  PlusCircleIcon,
 } from 'lucide-react';
 
 interface ConnectedDevice {
@@ -84,12 +79,10 @@ export const DeviceConnection = () => {
 
   const handleConnectDevice = async (provider: DeviceProvider) => {
     try {
-      // In a real app, you would need to register your app with each provider and get client IDs
-      const clientId = 'demo_client_id'; // This would be your registered client ID
+      const clientId = 'demo_client_id';
       const redirectUri = `${window.location.origin}/device-connect`;
       
       await connectDevice(provider, clientId, redirectUri);
-      // The user will be redirected to the provider's authorization page
     } catch (error) {
       console.error(`Error connecting to ${provider}:`, error);
       toast({
@@ -113,7 +106,6 @@ export const DeviceConnection = () => {
           description: `Successfully synced data from ${getDeviceName(provider)}`,
         });
         
-        // Refresh the connected devices list to update last synced time
         loadConnectedDevices();
       } else {
         throw new Error(result.error || 'Sync failed');
