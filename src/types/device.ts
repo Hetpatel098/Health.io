@@ -1,5 +1,5 @@
 
-export type DeviceProvider = 'fitbit' | 'apple_health' | 'google_fit' | 'garmin' | 'withings';
+export type DeviceProvider = 'fitbit' | 'apple_health' | 'google_fit' | 'garmin' | 'withings' | 'android';
 
 export interface DeviceConnection {
   id: string;
