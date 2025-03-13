@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,7 +19,33 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { signInWithGoogle } = useAuth();
+  const location = useLocation();
+  const { signInWithGoogle, session, user } = useAuth();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    if (user) {
+      console.log("Auth: User already logged in, redirecting to home");
+      navigate("/");
+    }
+
+    // Check for auth error in URL
+    const url = new URL(window.location.href);
+    const errorDescription = url.searchParams.get("error_description");
+    
+    if (errorDescription) {
+      console.error("Auth: Error from OAuth redirect:", errorDescription);
+      toast({
+        title: "Authentication Error",
+        description: errorDescription,
+        variant: "destructive",
+      });
+      
+      // Clean up the URL
+      url.searchParams.delete("error_description");
+      window.history.replaceState({}, document.title, url.toString());
+    }
+  }, [user, navigate, toast]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +61,7 @@ const Auth = () => {
     
     try {
       setLoading(true);
+      console.log("Auth: Attempting to sign up with:", { email, firstName, lastName });
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -49,19 +75,23 @@ const Auth = () => {
         },
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Auth: Signup error details:", error);
+        throw error;
+      }
       
+      console.log("Auth: Signup successful, data:", data);
       toast({
         title: "Account created!",
-        description: "Check your email for the confirmation link.",
+        description: "Check your email for the confirmation link or sign in if email confirmation is disabled.",
       });
       
-      // Navigate to home after signup
+      // Navigate to home after signup if user is available (email confirmation disabled)
       if (data.user) {
         navigate("/");
       }
     } catch (error: any) {
-      console.error("Signup error:", error);
+      console.error("Auth: Signup error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to sign up. Please try again.",
@@ -86,7 +116,7 @@ const Auth = () => {
     
     try {
       setLoading(true);
-      console.log("Attempting login with:", { email });
+      console.log("Auth: Attempting login with:", { email });
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -94,11 +124,11 @@ const Auth = () => {
       });
       
       if (error) {
-        console.error("Login error:", error);
+        console.error("Auth: Login error details:", error);
         throw error;
       }
       
-      console.log("Login successful:", data);
+      console.log("Auth: Login successful:", data);
       toast({
         title: "Login successful",
         description: "You have been signed in.",
@@ -106,7 +136,7 @@ const Auth = () => {
       
       navigate("/");
     } catch (error: any) {
-      console.error("Login error details:", error);
+      console.error("Auth: Login error details:", error);
       toast({
         title: "Login failed",
         description: error.message || "Invalid email or password.",
@@ -119,7 +149,21 @@ const Auth = () => {
 
   const handleGoogleSignIn = (e: React.MouseEvent) => {
     e.preventDefault();
-    signInWithGoogle();
+    console.log("Auth: Initiating Google sign-in");
+    setLoading(true);
+    
+    try {
+      signInWithGoogle();
+      // The loading state will be cleared after redirect or if there's an error in the context
+    } catch (error) {
+      console.error("Auth: Error initiating Google sign-in:", error);
+      setLoading(false);
+      toast({
+        title: "Error",
+        description: "Failed to initiate Google sign-in. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
