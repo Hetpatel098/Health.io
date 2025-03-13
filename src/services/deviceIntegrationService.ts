@@ -1,6 +1,10 @@
+
 import { supabase, storeDeviceToken, getDeviceToken, updateLastSynced } from '@/integrations/supabase/client';
 import { useHealthStore } from './healthDataService';
 import type { DeviceProvider, ProviderConfig } from '@/types/device';
+
+// Export the DeviceProvider type from device.ts
+export type { DeviceProvider } from '@/types/device';
 
 // Configuration for OAuth providers
 const providerConfig: Record<DeviceProvider, ProviderConfig> = {
